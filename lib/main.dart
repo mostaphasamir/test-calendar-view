@@ -1,121 +1,200 @@
 import 'package:flutter/material.dart';
-import 'package:syncfusion_flutter_calendar/calendar.dart';
+
+
 
 void main() {
-  return runApp(CalendarApp());
+  runApp(MaterialApp(
+    home: WaveBottomNavBar()
+  ));
+}
+class WaveBottomNavBar extends StatefulWidget {
+  const WaveBottomNavBar({super.key});
+
+  @override
+  _WaveBottomNavBarState createState() => _WaveBottomNavBarState();
 }
 
-/// The app which hosts the home page which contains the calendar on it.
-class CalendarApp extends StatelessWidget {
+class _WaveBottomNavBarState extends State<WaveBottomNavBar>
+    with SingleTickerProviderStateMixin {
+  int _selectedIndex = 0;
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
   @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(title: 'Calendar Demo', home: MyHomePage());
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 300),
+    );
+    _animation = Tween<double>(begin: 0, end: 0).animate(_controller);
   }
-}
 
-/// The hove page which hosts the calendar
-class MyHomePage extends StatefulWidget {
-  /// Creates the home page to display teh calendar widget.
-  const MyHomePage({Key? key}) : super(key: key);
+  void _onItemTapped(int index) {
+    setState(() {
+      final previousPosition = _selectedIndex * (1 / 4);
+      final newPosition = index * (1 / 4);
 
-  @override
-  // ignore: library_private_types_in_public_api
-  _MyHomePageState createState() => _MyHomePageState();
-}
+      _animation = Tween<double>(begin: previousPosition, end: newPosition)
+          .animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
-class _MyHomePageState extends State<MyHomePage> {
+      _controller.reset();
+      _controller.forward();
+
+      _selectedIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: SfCalendar(
-          allowViewNavigation: true,
-          view: CalendarView.month,
-          dataSource: MeetingDataSource(_getDataSource()),
-          // by default the month appointment display mode set as Indicator, we can
-          // change the display mode as appointment using the appointment display
-          // mode property
-          monthViewSettings: const MonthViewSettings(
-              appointmentDisplayMode: MonthAppointmentDisplayMode.appointment),
-        ));
+      backgroundColor: Colors.red,
+      body: Center(
+        child: Text(
+          "Selected Tab: ${_getTabLabel(_selectedIndex)}",
+          style: TextStyle(fontSize: 24),
+        ),
+      ),
+      bottomNavigationBar: Stack(
+        children: [
+          CustomPaint(
+            size: const Size(double.infinity, 80),
+            painter: WavePainter(_animation),
+          ),
+          Positioned.fill(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildNavItem(
+                  icon: Icons.settings,
+                  label: "Service",
+                  index: 0,
+                ),
+                _buildNavItem(
+                  icon: Icons.dashboard,
+                  label: "Dashboard",
+                  index: 1,
+                ),
+                _buildNavItem(
+                  icon: Icons.notifications,
+                  label: "Notification",
+                  index: 2,
+                ),
+                _buildNavItem(
+                  icon: Icons.person,
+                  label: "Profile",
+                  index: 3,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  List<Meeting> _getDataSource() {
-    final List<Meeting> meetings = <Meeting>[];
-    final DateTime today = DateTime.now();
-    final DateTime startTime = DateTime(today.year, today.month, today.day, 9);
-    final DateTime endTime = startTime.add(const Duration(minutes: 32));
-    meetings.add(Meeting(
-        'Conference', startTime, endTime, const Color(0xFF0F8644), false));
-    meetings.add(Meeting(
-        'test 2', startTime, endTime, const Color(0xFF0F8644), false));
-    return meetings;
-  }
-}
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required int index,
+  }) {
+    final isSelected = _selectedIndex == index;
 
-/// An object to set the appointment collection data source to calendar, which
-/// used to map the custom appointment data to the calendar appointment, and
-/// allows to add, remove or reset the appointment collection.
-class MeetingDataSource extends CalendarDataSource {
-  /// Creates a meeting data source, which used to set the appointment
-  /// collection to the calendar
-  MeetingDataSource(List<Meeting> source) {
-    appointments = source;
-  }
-
-  @override
-  DateTime getStartTime(int index) {
-    return _getMeetingData(index).from;
-  }
-
-  @override
-  DateTime getEndTime(int index) {
-    return _getMeetingData(index).to;
-  }
-
-  @override
-  String getSubject(int index) {
-    return _getMeetingData(index).eventName;
+    return GestureDetector(
+      onTap: () => _onItemTapped(index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            backgroundColor: isSelected ? Colors.purple : Colors.transparent,
+            radius: 24,
+            child: Icon(
+              icon,
+              color: isSelected ? Colors.white : Colors.black54,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.purple : Colors.black54,
+              fontWeight: !isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  @override
-  Color getColor(int index) {
-    return _getMeetingData(index).background;
-  }
-
-  @override
-  bool isAllDay(int index) {
-    return _getMeetingData(index).isAllDay;
-  }
-
-  Meeting _getMeetingData(int index) {
-    final dynamic meeting = appointments![index];
-    late final Meeting meetingData;
-    if (meeting is Meeting) {
-      meetingData = meeting;
+  String _getTabLabel(int index) {
+    switch (index) {
+      case 0:
+        return "Service";
+      case 1:
+        return "Dashboard";
+      case 2:
+        return "Notification";
+      case 3:
+        return "Profile";
+      default:
+        return "";
     }
+  }
 
-    return meetingData;
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 }
 
-/// Custom business object class which contains properties to hold the detailed
-/// information about the event data which will be rendered in calendar.
-class Meeting {
-  /// Creates a meeting class with required details.
-  Meeting(this.eventName, this.from, this.to, this.background, this.isAllDay);
+class WavePainter extends CustomPainter {
+  final Animation<double> animation;
 
-  /// Event name which is equivalent to subject property of [Appointment].
-  String eventName;
+  WavePainter(this.animation) : super(repaint: animation);
 
-  /// From which is equivalent to start time property of [Appointment].
-  DateTime from;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
 
-  /// To which is equivalent to end time property of [Appointment].
-  DateTime to;
+    final waveWidth = size.width / 4;
+    final waveCenter = animation.value * size.width + waveWidth / 2;
 
-  /// Background which is equivalent to color property of [Appointment].
-  Color background;
+    // Adjusting the rectangle to have a rounded border radius
+    final rectPath = Path()
+      ..addRRect(RRect.fromRectAndCorners(
+        Rect.fromLTRB(0, -40, size.width, size.height),
+      ));
 
-  /// IsAllDay which is equivalent to isAllDay property of [Appointment].
-  bool isAllDay;
+    final wavePath = Path();
+    wavePath.moveTo(0, 0);
+    wavePath.lineTo(waveCenter - waveWidth / 2, 0);
+
+    wavePath.quadraticBezierTo(
+      waveCenter,
+      -40,
+      waveCenter + waveWidth / 2,
+      0,
+
+    );
+
+    wavePath.lineTo(size.width, 0); // Move to the right edge
+    wavePath.lineTo(size.width, size.height); // Bottom right corner
+    wavePath.lineTo(0, size.height); // Bottom left corner
+
+    wavePath.close(); // Close the path
+
+    // Combine the rectangle and wave paths
+    final combinedPath = Path.combine(PathOperation.intersect, rectPath, wavePath);
+
+    // Draw the combined path
+    canvas.drawPath(combinedPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => true;
 }
+
+
